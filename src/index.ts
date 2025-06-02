@@ -1,4 +1,4 @@
-// TODO: The exported surface is fairly large right now,
+/// TODO: The exported surface is fairly large right now,
 // See how much we can narrow this.
 
 export { updateSchema, schemaForLens } from './json-schema'
@@ -23,3 +23,13 @@ export {
 } from './helpers'
 
 export { loadYamlLens } from './lens-loader'
+
+// Lossless conversion exports
+export {
+  addReverseLinks,
+  extractSourceUrl,
+  applyLosslessLensToDoc,
+  createDocumentFetcher,
+  ReverseLinksOptions,
+  LosslessConversionOptions,
+} from './lossless'
