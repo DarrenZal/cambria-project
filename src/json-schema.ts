@@ -494,6 +494,11 @@ function applyLensOperation(schema: JSONSchema7, op: LensOp) {
       }
       return renameProperty(schema, op.source, op.destination)
 
+    case 'setValue':
+      // For setValue, we don't need to modify the schema structure
+      // The value will be set during document transformation
+      return schema
+
     default:
       assertNever(op) // exhaustiveness check
       return null

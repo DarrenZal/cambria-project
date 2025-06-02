@@ -43,6 +43,12 @@ export interface HeadProperty {
   name: string
 }
 
+export interface SetValue {
+  op: 'setValue'
+  name: string
+  value: any
+}
+
 export interface LensIn {
   op: 'in'
   name: string
@@ -85,6 +91,7 @@ export type LensOp =
   | WrapProperty
   | HeadProperty
   | PlungeProperty
+  | SetValue
   | LensIn
   | LensMap
   | ConvertValue
