@@ -122,9 +122,15 @@ function runLensOp(lensOp, patchOp) {
             break;
         }
         case 'add':
-            // hmm, what do we do here? perhaps write the default value if there's nothing
-            // already written into the doc there?
-            // (could be a good use case for destinationDoc)
+            // Add a new field with the specified default value
+            // Generate an "add" patch operation for the new field
+            if (lensOp.default !== undefined) {
+                return {
+                    op: 'add',
+                    path: `/${lensOp.name}`,
+                    value: lensOp.default
+                };
+            }
             break;
         case 'remove':
             if (patchOp.path.split('/')[1] === lensOp.name)
@@ -166,6 +172,15 @@ function runLensOp(lensOp, patchOp) {
                 throw new Error(`No mapping for value: ${stringifiedValue}`);
             }
             return Object.assign(Object.assign({}, patchOp), { value: lensOp.mapping[0][stringifiedValue] });
+        }
+        case 'optionalRename': {
+            // Handle the same way as regular rename, including nested paths
+            if ((patchOp.op === 'replace' || patchOp.op === 'add') &&
+                patchOp.path.split('/')[1] === lensOp.source) {
+                const path = patchOp.path.replace(lensOp.source, lensOp.destination);
+                return Object.assign(Object.assign({}, patchOp), { path });
+            }
+            break;
         }
         default:
             assertNever(lensOp); // exhaustiveness check

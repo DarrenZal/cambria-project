@@ -1,5 +1,5 @@
 "use strict";
-// TODO: The exported surface is fairly large right now,
+/// TODO: The exported surface is fairly large right now,
 // See how much we can narrow this.
 Object.defineProperty(exports, "__esModule", { value: true });
 var json_schema_1 = require("./json-schema");
@@ -33,4 +33,10 @@ Object.defineProperty(exports, "map", { enumerable: true, get: function () { ret
 Object.defineProperty(exports, "convertValue", { enumerable: true, get: function () { return helpers_1.convertValue; } });
 var lens_loader_1 = require("./lens-loader");
 Object.defineProperty(exports, "loadYamlLens", { enumerable: true, get: function () { return lens_loader_1.loadYamlLens; } });
+// Lossless conversion exports
+var lossless_1 = require("./lossless");
+Object.defineProperty(exports, "addReverseLinks", { enumerable: true, get: function () { return lossless_1.addReverseLinks; } });
+Object.defineProperty(exports, "extractSourceUrl", { enumerable: true, get: function () { return lossless_1.extractSourceUrl; } });
+Object.defineProperty(exports, "applyLosslessLensToDoc", { enumerable: true, get: function () { return lossless_1.applyLosslessLensToDoc; } });
+Object.defineProperty(exports, "createDocumentFetcher", { enumerable: true, get: function () { return lossless_1.createDocumentFetcher; } });
 //# sourceMappingURL=index.js.map

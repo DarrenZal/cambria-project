@@ -152,9 +152,15 @@ function runLensOp(lensOp: LensOp, patchOp: MaybePatchOp): MaybePatchOp {
     }
 
     case 'add':
-      // hmm, what do we do here? perhaps write the default value if there's nothing
-      // already written into the doc there?
-      // (could be a good use case for destinationDoc)
+      // Add a new field with the specified default value
+      // Generate an "add" patch operation for the new field
+      if (lensOp.default !== undefined) {
+        return {
+          op: 'add' as const,
+          path: `/${lensOp.name}`,
+          value: lensOp.default
+        }
+      }
       break
 
     case 'remove':

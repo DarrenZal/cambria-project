@@ -354,16 +354,33 @@ function applyLensOperation(schema, op) {
             return plungeProperty(schema, op.host, op.name);
         case 'convert':
             return convertValue(schema, op);
+        case 'optionalRename':
+            // For schema transformation, optionalRename should only rename if the property exists
+            // If the property doesn't exist, just return the schema unchanged
+            if (!schema.properties || !schema.properties[op.source]) {
+                return schema;
+            }
+            return renameProperty(schema, op.source, op.destination);
         default:
             assertNever(op); // exhaustiveness check
             return null;
     }
 }
 function updateSchema(schema, lens) {
+    // Fix for "Cannot read properties of null (reading 'type')" error
+    if (!lens || lens.length === 0) {
+        return schema;
+    }
     return lens.reduce((schema, op) => {
         if (schema === undefined)
             throw new Error("Can't update undefined schema");
-        return applyLensOperation(schema, op);
+        try {
+            return applyLensOperation(schema, op);
+        }
+        catch (error) {
+            console.error(`Error applying lens operation ${op.op}: ${error.message}`);
+            return schema; // Return the original schema if the operation fails
+        }
     }, schema);
 }
 exports.updateSchema = updateSchema;

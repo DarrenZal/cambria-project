@@ -1,11 +1,7 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.applyLensToDoc = exports.importDoc = void 0;
 const fast_json_patch_1 = require("fast-json-patch");
-const to_json_schema_1 = __importDefault(require("to-json-schema"));
 const defaults_1 = require("./defaults");
 const patch_1 = require("./patch");
 const json_schema_1 = require("./json-schema");
@@ -15,13 +11,60 @@ const json_schema_1 = require("./json-schema");
  * @param inputDoc a document to convert into a big JSON patch describing its full contents
  */
 function importDoc(inputDoc) {
-    const options = {
-        postProcessFnc: (type, schema, obj, defaultFnc) => (Object.assign(Object.assign({}, defaultFnc(type, schema, obj)), { type: [type, 'null'] })),
-        objects: {
-            postProcessFnc: (schema, obj, defaultFnc) => (Object.assign(Object.assign({}, defaultFnc(schema, obj)), { required: Object.getOwnPropertyNames(obj) })),
-        },
+    // Always use our robust fallback schema generation instead of to-json-schema
+    // to avoid array handling issues
+    // Create a robust schema using our custom logic
+    const schema = {
+        type: 'object',
+        properties: {}
     };
-    const schema = to_json_schema_1.default(inputDoc, options);
+    // Add basic property types based on the input document
+    if (inputDoc && typeof inputDoc === 'object' && !Array.isArray(inputDoc)) {
+        Object.keys(inputDoc).forEach(key => {
+            const value = inputDoc[key];
+            let type = 'string'; // default type
+            if (typeof value === 'number') {
+                type = 'number';
+            }
+            else if (typeof value === 'boolean') {
+                type = 'boolean';
+            }
+            else if (Array.isArray(value)) {
+                // Handle arrays with proper item type inference
+                let itemType = 'string'; // default
+                if (value.length > 0) {
+                    const firstItem = value[0];
+                    if (typeof firstItem === 'string') {
+                        itemType = 'string';
+                    }
+                    else if (typeof firstItem === 'number') {
+                        itemType = 'number';
+                    }
+                    else if (typeof firstItem === 'boolean') {
+                        itemType = 'boolean';
+                    }
+                    else if (Array.isArray(firstItem)) {
+                        itemType = 'array';
+                    }
+                    else if (firstItem && typeof firstItem === 'object') {
+                        itemType = 'object';
+                    }
+                }
+                schema.properties[key] = {
+                    type: ['array', 'null'],
+                    items: { type: [itemType, 'null'] }
+                };
+                return; // Skip the default assignment below
+            }
+            else if (value === null) {
+                type = 'null';
+            }
+            else if (typeof value === 'object') {
+                type = 'object';
+            }
+            schema.properties[key] = { type: [type, 'null'] };
+        });
+    }
     const patch = fast_json_patch_1.compare({}, inputDoc);
     return [schema, patch];
 }
@@ -54,7 +97,8 @@ targetDoc) {
     // (start with either a specified baseDoc, or just empty doc)
     // convert the patch through the lens
     const outputPatch = patch_1.applyLensToPatch(lensSource, patchForOriginalDoc, inputSchema);
-    return fast_json_patch_1.applyPatch(base, outputPatch).newDocument;
+    const result = fast_json_patch_1.applyPatch(base, outputPatch).newDocument;
+    return result;
 }
 exports.applyLensToDoc = applyLensToDoc;
 //# sourceMappingURL=doc.js.map

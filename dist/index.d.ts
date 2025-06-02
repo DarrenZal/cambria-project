@@ -7,3 +7,4 @@ export { reverseLens } from './reverse';
 export { LensGraph, initLensGraph, registerLens, lensGraphSchema, lensFromTo } from './lens-graph';
 export { addProperty, removeProperty, renameProperty, hoistProperty, plungeProperty, wrapProperty, headProperty, inside, map, convertValue, } from './helpers';
 export { loadYamlLens } from './lens-loader';
+export { addReverseLinks, extractSourceUrl, applyLosslessLensToDoc, createDocumentFetcher, ReverseLinksOptions, LosslessConversionOptions, } from './lossless';

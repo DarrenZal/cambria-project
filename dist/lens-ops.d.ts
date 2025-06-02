@@ -54,5 +54,10 @@ export interface ConvertValue {
     sourceType?: JSONSchema7TypeName;
     destinationType?: JSONSchema7TypeName;
 }
-export declare type LensOp = AddProperty | RemoveProperty | RenameProperty | HoistProperty | WrapProperty | HeadProperty | PlungeProperty | LensIn | LensMap | ConvertValue;
+export interface OptionalRename {
+    op: 'optionalRename';
+    source: string;
+    destination: string;
+}
+export declare type LensOp = AddProperty | RemoveProperty | RenameProperty | HoistProperty | WrapProperty | HeadProperty | PlungeProperty | LensIn | LensMap | ConvertValue | OptionalRename;
 export declare type LensSource = LensOp[];

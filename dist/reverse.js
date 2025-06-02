@@ -15,6 +15,8 @@ function reverseLensOp(lensOp) {
     switch (lensOp.op) {
         case 'rename':
             return Object.assign(Object.assign({}, lensOp), { source: lensOp.destination, destination: lensOp.source });
+        case 'optionalRename':
+            return Object.assign(Object.assign({}, lensOp), { source: lensOp.destination, destination: lensOp.source });
         case 'add': {
             return Object.assign(Object.assign({}, lensOp), { op: 'remove' });
         }
