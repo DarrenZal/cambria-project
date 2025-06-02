@@ -14,23 +14,72 @@ import { updateSchema } from './json-schema'
  * @param inputDoc a document to convert into a big JSON patch describing its full contents
  */
 export function importDoc(inputDoc: any): [JSONSchema7, Patch] {
-  const options = {
-    postProcessFnc: (type, schema, obj, defaultFnc) => ({
-      ...defaultFnc(type, schema, obj),
-      type: [type, 'null'],
-    }),
-    objects: {
-      postProcessFnc: (schema, obj, defaultFnc) => ({
-        ...defaultFnc(schema, obj),
-        required: Object.getOwnPropertyNames(obj),
+  try {
+    console.log('importDoc - inputDoc:', JSON.stringify(inputDoc, null, 2))
+    
+    // Use a safer configuration for arrays to avoid merging issues
+    const options = {
+      postProcessFnc: (type, schema, obj, defaultFnc) => ({
+        ...defaultFnc(type, schema, obj),
+        type: [type, 'null'],
       }),
-    },
+      objects: {
+        postProcessFnc: (schema, obj, defaultFnc) => ({
+          ...defaultFnc(schema, obj),
+          required: Object.getOwnPropertyNames(obj),
+        }),
+      },
+      arrays: {
+        // Use 'first' mode instead of 'all' to avoid merging array items
+        mode: 'first'
+      }
+    }
+
+    console.log('importDoc - options:', JSON.stringify(options, null, 2))
+    
+    const schema = toJSONSchema(inputDoc, options) as JSONSchema7
+    console.log('importDoc - generated schema:', JSON.stringify(schema, null, 2))
+    
+    const patch = compare({}, inputDoc)
+    console.log('importDoc - generated patch:', JSON.stringify(patch, null, 2))
+
+    return [schema, patch]
+  } catch (error) {
+    console.error('Error in importDoc:', error)
+    
+    // Create a simple schema as fallback
+    const fallbackSchema: JSONSchema7 = {
+      type: 'object',
+      properties: {}
+    }
+    
+    // Add basic property types based on the input document
+    if (inputDoc && typeof inputDoc === 'object' && !Array.isArray(inputDoc)) {
+      Object.keys(inputDoc).forEach(key => {
+        const value = inputDoc[key]
+        let type: any = 'string' // default type
+        
+        if (typeof value === 'number') {
+          type = 'number'
+        } else if (typeof value === 'boolean') {
+          type = 'boolean'
+        } else if (Array.isArray(value)) {
+          type = 'array'
+        } else if (value === null) {
+          type = 'null'
+        } else if (typeof value === 'object') {
+          type = 'object'
+        }
+        
+        fallbackSchema.properties![key] = { type: [type, 'null'] }
+      })
+    }
+    
+    const patch = compare({}, inputDoc)
+    console.log('importDoc - using fallback schema:', JSON.stringify(fallbackSchema, null, 2))
+    
+    return [fallbackSchema, patch]
   }
-
-  const schema = toJSONSchema(inputDoc, options) as JSONSchema7
-  const patch = compare({}, inputDoc)
-
-  return [schema, patch]
 }
 
 /**
