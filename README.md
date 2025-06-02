@@ -72,11 +72,15 @@ console.log(JSON.stringify(newDoc, null, 4))
 
 ## Enhanced Transformation Features
 
-Cambria now includes enhanced transformation capabilities with robust error handling and source tracking:
+Cambria now includes enhanced transformation capabilities with robust error handling, source tracking, and advanced array transformation support:
 
 - **optionalRename operation**: Safely rename fields without failing when source doesn't exist
 - **Source tracking**: Maintain `source_url` fields for transformation traceability  
 - **Pure declarative lenses**: All transformations use Cambria operations without custom JavaScript
+- **Advanced array transformations**: Enhanced `in` and `map` operations for complex array element transformations
+- **Lossless schema conversion**: Complete bidirectional transformation support without external post-processing
+
+### Basic Field Transformations
 
 ```js
 import { loadYamlLens, applyLensToDoc } from 'cambria'
@@ -102,6 +106,40 @@ const transformedDoc = applyLensToDoc(lens, sourceDoc)
 
 // Result includes source_url for traceability
 console.log(transformedDoc.source_url) // Original document URL
+```
+
+### Advanced Array Transformations
+
+```js
+// Complex array element transformations with field renaming and addition
+const arrayTransformLens = `
+schemaName: PersonWithRelationships
+lens:
+  - in:
+      name: "relationships"
+      lens:
+        - map:
+            lens:
+              - rename:
+                  source: "target_url"
+                  destination: "object_url"
+              - add:
+                  name: "predicate_url"
+                  type: "string"
+                  default: "https://schema.org/knows"
+              - remove:
+                  name: "type"
+              - remove:
+                  name: "description"
+`
+
+// Transform arrays of objects with field mapping, addition, and removal
+const result = applyLensToDoc(loadYamlLens(arrayTransformLens), sourceDoc)
+
+// Each relationship object is transformed:
+// { target_url: "...", type: "...", description: "..." }
+// becomes:
+// { object_url: "...", predicate_url: "https://schema.org/knows" }
 ```
 
 For more details, see the [lossless conversion documentation](docs/lossless-conversion.md).

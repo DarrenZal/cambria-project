@@ -18,6 +18,8 @@ The lossless conversion approach solves this problem by:
 - **Source Tracking**: Maintains `source_url` fields to track transformation origins
 - **Bidirectional**: Supports forward and reverse transformation chains
 - **Enhanced Operations**: Includes new `optionalRename` operation for robust field transformations
+- **Advanced Array Transformations**: Enhanced `in` and `map` operations for complex array element transformations
+- **Comprehensive Field Operations**: Support for field renaming, addition, and removal within array elements
 
 ## API Reference
 
@@ -133,6 +135,56 @@ The transformed document maintains a `source_url` field to track its origin:
 }
 ```
 
+### Advanced Array Transformations
+
+The enhanced Cambria engine now supports complex array transformations with field-level operations:
+
+```yaml
+# Transform array elements with field renaming, addition, and removal
+lens:
+  - in:
+      name: "relationships"
+      lens:
+        - map:
+            lens:
+              - rename:
+                  source: "target_url"
+                  destination: "object_url"
+              - add:
+                  name: "predicate_url"
+                  type: "string"
+                  default: "https://schema.org/knows"
+              - remove:
+                  name: "type"
+              - remove:
+                  name: "description"
+```
+
+This transforms each object in the `relationships` array:
+
+```javascript
+// Input
+{
+  "relationships": [
+    {
+      "target_url": "https://example.com",
+      "type": "collaboration",
+      "description": "Working together"
+    }
+  ]
+}
+
+// Output after transformation
+{
+  "relationships": [
+    {
+      "object_url": "https://example.com",
+      "predicate_url": "https://schema.org/knows"
+    }
+  ]
+}
+```
+
 ## Benefits
 
 - **Pure Declarative**: All transformations use Cambria lens operations without custom JavaScript
@@ -140,3 +192,5 @@ The transformed document maintains a `source_url` field to track its origin:
 - **Source Traceability**: `source_url` field enables bidirectional transformation chains
 - **Schema Agnostic**: Works with any JSON schema format
 - **Maintainable**: Clear YAML lens definitions that are easy to read and modify
+- **Array Support**: Complete transformation of array elements with field-level operations
+- **Lossless Conversion**: No external post-processing required for complex schema transformations
