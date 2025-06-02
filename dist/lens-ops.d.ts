@@ -35,6 +35,11 @@ export interface HeadProperty {
     op: 'head';
     name: string;
 }
+export interface SetValue {
+    op: 'setValue';
+    name: string;
+    value: any;
+}
 export interface LensIn {
     op: 'in';
     name: string;
@@ -59,5 +64,5 @@ export interface OptionalRename {
     source: string;
     destination: string;
 }
-export declare type LensOp = AddProperty | RemoveProperty | RenameProperty | HoistProperty | WrapProperty | HeadProperty | PlungeProperty | LensIn | LensMap | ConvertValue | OptionalRename;
+export declare type LensOp = AddProperty | RemoveProperty | RenameProperty | HoistProperty | WrapProperty | HeadProperty | PlungeProperty | SetValue | LensIn | LensMap | ConvertValue | OptionalRename;
 export declare type LensSource = LensOp[];

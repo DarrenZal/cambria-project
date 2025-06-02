@@ -99,8 +99,12 @@ function getPropertiesForPath(schema, path) {
         const types = Array.isArray(schema.type) ? schema.type : [schema.type];
         if (types.includes('object')) {
             const schemaForProperty = schema.properties && schema.properties[pathSegment];
-            if (typeof schemaForProperty !== 'object')
-                throw new Error('Expected object');
+            if (typeof schemaForProperty !== 'object' || schemaForProperty === null) {
+                // Return a fallback schema for undefined properties
+                return {
+                    type: ['string', 'null']
+                };
+            }
             return schemaForProperty;
         }
         if (types.includes('array')) {
@@ -114,7 +118,10 @@ function getPropertiesForPath(schema, path) {
             // todo: revisit this "as", was a huge pain to get this past TS
             return schema.items;
         }
-        throw new Error('Expected object or array in schema based on JSON Pointer');
+        // Return a fallback schema if we can't determine the type
+        return {
+            type: ['string', 'null']
+        };
     }, schema);
     if (properties === undefined)
         return {};

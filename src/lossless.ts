@@ -87,6 +87,11 @@ export function extractSourceUrl(doc: any, predicate = 'schema:isBasedOn'): stri
     return doc.profile_source
   }
 
+  // Fall back to source_url field (for Murmurations compatibility)
+  if (doc.source_url) {
+    return doc.source_url
+  }
+
   return null
 }
 
@@ -123,35 +128,18 @@ export async function applyLosslessLensToDoc(
   }
 
   // Apply the lens transformation
-  console.log('applyLosslessLensToDoc - inputDoc:', JSON.stringify(inputDoc, null, 2))
-  console.log('applyLosslessLensToDoc - options:', JSON.stringify(options, null, 2))
+  let result = applyLensToDoc(lensSource, inputDoc, options.inputSchema)
   
-  // Extract inputSchema from options if provided
-  const inputSchema = options.inputSchema
-  console.log('applyLosslessLensToDoc - inputSchema:', inputSchema ? 'provided' : 'not provided')
-  
-  // Debug lens source
-  console.log('applyLosslessLensToDoc - lensSource:', JSON.stringify(lensSource, null, 2))
-  
-  try {
-    console.log('Calling applyLensToDoc...')
-    let result = applyLensToDoc(lensSource, inputDoc, inputSchema)
-    console.log('applyLensToDoc result:', JSON.stringify(result, null, 2))
-    
-    // Add @reverse links if requested
-    if (options.addReverseLinks !== false && sourceUrl) {
-      result = addReverseLinks(result, {
-        sourceId: sourceUrl,
-        predicate: options.predicate,
-        addProfileSource: options.addProfileSource,
-      })
-    }
-    
-    return result
-  } catch (error) {
-    console.error('Error in applyLensToDoc:', error)
-    throw error
+  // Add @reverse links if requested
+  if (options.addReverseLinks !== false && sourceUrl) {
+    result = addReverseLinks(result, {
+      sourceId: sourceUrl,
+      predicate: options.predicate,
+      addProfileSource: options.addProfileSource,
+    })
   }
+  
+  return result
 }
 
 /**

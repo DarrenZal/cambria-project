@@ -136,6 +136,29 @@ function runLensOp(lensOp, patchOp) {
             if (patchOp.path.split('/')[1] === lensOp.name)
                 return null;
             break;
+        case 'setValue':
+            // Set a field to a specific value
+            // Handle both the main field and any nested array/object elements
+            if (patchOp.path === `/${lensOp.name}`) {
+                return {
+                    op: 'replace',
+                    path: patchOp.path,
+                    value: lensOp.value
+                };
+            }
+            // Convert add operations for the field to replace
+            if (patchOp.op === 'add' && patchOp.path === `/${lensOp.name}`) {
+                return {
+                    op: 'replace',
+                    path: patchOp.path,
+                    value: lensOp.value
+                };
+            }
+            // Remove any nested operations for arrays/objects that would interfere
+            if (patchOp.path.startsWith(`/${lensOp.name}/`)) {
+                return null; // Remove nested array/object element patches
+            }
+            break;
         case 'in': {
             // Run the inner body in a context where the path has been narrowed down...
             const pathComponent = new RegExp(`^/${lensOp.name}`);

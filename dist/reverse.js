@@ -38,6 +38,15 @@ function reverseLensOp(lensOp) {
             const reversed = Object.assign(Object.assign({}, lensOp), { mapping, sourceType: lensOp.destinationType, destinationType: lensOp.sourceType });
             return reversed;
         }
+        case 'setValue':
+            // setValue operations cannot be directly reversed
+            // In practice, the reverse would need to fetch the original value
+            // For now, return a no-op that preserves the field
+            return {
+                op: 'optionalRename',
+                source: lensOp.name,
+                destination: lensOp.name,
+            };
         default:
             return assertNever(lensOp); // exhaustiveness check
     }

@@ -60,6 +60,10 @@ function extractSourceUrl(doc, predicate = 'schema:isBasedOn') {
     if (doc.profile_source) {
         return doc.profile_source;
     }
+    // Fall back to source_url field (for Murmurations compatibility)
+    if (doc.source_url) {
+        return doc.source_url;
+    }
     return null;
 }
 exports.extractSourceUrl = extractSourceUrl;
@@ -92,31 +96,16 @@ function applyLosslessLensToDoc(lensSource, inputDoc, options = {}) {
             }
         }
         // Apply the lens transformation
-        console.log('applyLosslessLensToDoc - inputDoc:', JSON.stringify(inputDoc, null, 2));
-        console.log('applyLosslessLensToDoc - options:', JSON.stringify(options, null, 2));
-        // Extract inputSchema from options if provided
-        const inputSchema = options.inputSchema;
-        console.log('applyLosslessLensToDoc - inputSchema:', inputSchema ? 'provided' : 'not provided');
-        // Debug lens source
-        console.log('applyLosslessLensToDoc - lensSource:', JSON.stringify(lensSource, null, 2));
-        try {
-            console.log('Calling applyLensToDoc...');
-            let result = doc_1.applyLensToDoc(lensSource, inputDoc, inputSchema);
-            console.log('applyLensToDoc result:', JSON.stringify(result, null, 2));
-            // Add @reverse links if requested
-            if (options.addReverseLinks !== false && sourceUrl) {
-                result = addReverseLinks(result, {
-                    sourceId: sourceUrl,
-                    predicate: options.predicate,
-                    addProfileSource: options.addProfileSource,
-                });
-            }
-            return result;
+        let result = doc_1.applyLensToDoc(lensSource, inputDoc, options.inputSchema);
+        // Add @reverse links if requested
+        if (options.addReverseLinks !== false && sourceUrl) {
+            result = addReverseLinks(result, {
+                sourceId: sourceUrl,
+                predicate: options.predicate,
+                addProfileSource: options.addProfileSource,
+            });
         }
-        catch (error) {
-            console.error('Error in applyLensToDoc:', error);
-            throw error;
-        }
+        return result;
     });
 }
 exports.applyLosslessLensToDoc = applyLosslessLensToDoc;

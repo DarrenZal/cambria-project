@@ -60,7 +60,13 @@ function importDoc(inputDoc) {
                 type = 'null';
             }
             else if (typeof value === 'object') {
+                // For complex objects, use a more flexible schema
                 type = 'object';
+                schema.properties[key] = {
+                    type: ['object', 'null'],
+                    additionalProperties: true
+                };
+                return; // Skip the default assignment below
             }
             schema.properties[key] = { type: [type, 'null'] };
         });
