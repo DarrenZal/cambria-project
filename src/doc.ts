@@ -74,6 +74,15 @@ export function importDoc(inputDoc: any): [JSONSchema7, Patch] {
   
   const patch = compare({}, inputDoc)
   
+  // Debug: log patches for relationship arrays
+  console.log('🔧 importDoc called with inputDoc keys:', Object.keys(inputDoc || {}))
+  if (inputDoc && inputDoc.relationships) {
+    console.log('🔧 importDoc found relationships array with', inputDoc.relationships.length, 'items')
+    console.log('🔧 All generated patches:', patch.length)
+    const relationshipPatches = patch.filter(p => p.path.includes('/relationships'))
+    console.log('🔧 Relationship patches:', relationshipPatches)
+  }
+  
   return [schema, patch]
 }
 

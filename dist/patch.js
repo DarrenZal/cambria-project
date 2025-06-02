@@ -43,6 +43,7 @@ function applyLensToPatchOp(lensSource, patchOp) {
 }
 exports.applyLensToPatchOp = applyLensToPatchOp;
 function runLensOp(lensOp, patchOp) {
+    var _a;
     if (patchOp === null) {
         return null;
     }
@@ -124,13 +125,17 @@ function runLensOp(lensOp, patchOp) {
         case 'add':
             // Add a new field with the specified default value
             // Generate an "add" patch operation for the new field
+            console.log(`➕ add: generating new field "${lensOp.name}" with default value:`, lensOp.default);
             if (lensOp.default !== undefined) {
-                return {
+                const result = {
                     op: 'add',
                     path: `/${lensOp.name}`,
                     value: lensOp.default
                 };
+                console.log(`➕ add: returning patch:`, result);
+                return result;
             }
+            console.log(`➕ add: no default value provided`);
             break;
         case 'remove':
             if (patchOp.path.split('/')[1] === lensOp.name)
@@ -139,12 +144,19 @@ function runLensOp(lensOp, patchOp) {
         case 'setValue':
             // Set a field to a specific value
             // Handle both the main field and any nested array/object elements
+            console.log(`🔍 setValue: patchOp.path="${patchOp.path}", lensOp.name="${lensOp.name}", expected="/${lensOp.name}"`);
             if (patchOp.path === `/${lensOp.name}`) {
+                console.log(`✅ setValue match! Setting ${lensOp.name} to ${lensOp.value}`);
                 return {
                     op: 'replace',
                     path: patchOp.path,
                     value: lensOp.value
                 };
+            }
+            // setValue should ONLY match its exact field, not any nested paths
+            if (patchOp.path.startsWith(`/${lensOp.name}/`)) {
+                console.log(`❌ setValue: skipping nested path ${patchOp.path} for field ${lensOp.name}`);
+                break;
             }
             // Convert add operations for the field to replace
             if (patchOp.op === 'add' && patchOp.path === `/${lensOp.name}`) {
@@ -161,27 +173,111 @@ function runLensOp(lensOp, patchOp) {
             break;
         case 'in': {
             // Run the inner body in a context where the path has been narrowed down...
+            console.log(`📥 in: processing patchOp.path="${patchOp.path}", lensOp.name="${lensOp.name}"`);
             const pathComponent = new RegExp(`^/${lensOp.name}`);
             if (patchOp.path.match(pathComponent)) {
-                const childPatch = applyLensToPatchOp(lensOp.lens, Object.assign(Object.assign({}, patchOp), { path: patchOp.path.replace(pathComponent, '') }));
+                const childPath = patchOp.path.replace(pathComponent, '');
+                console.log(`📥 in: matched! childPath="${childPath}"`);
+                // Special handling for array transformations when setting the entire array
+                console.log(`📥 in: checking array transformation conditions - childPath="${childPath}", op="${patchOp.op}", lensLength=${lensOp.lens.length}, firstOp=${(_a = lensOp.lens[0]) === null || _a === void 0 ? void 0 : _a.op}`);
+                if (patchOp.op === 'add' || patchOp.op === 'replace') {
+                    console.log(`📥 in: patchOp.value type=${typeof patchOp.value}, isArray=${Array.isArray(patchOp.value)}, value=`, patchOp.value);
+                }
+                if (childPath === '' && (patchOp.op === 'add' || patchOp.op === 'replace') &&
+                    Array.isArray(patchOp.value) && lensOp.lens.length === 1 && lensOp.lens[0].op === 'map') {
+                    console.log(`📥 in: handling array transformation for ${lensOp.name}`);
+                    const mapLens = lensOp.lens[0];
+                    // Transform each array element using the map lens
+                    const transformedArray = patchOp.value.map((item, index) => {
+                        console.log(`📥 in: transforming array element ${index}:`, item);
+                        let transformedItem = Object.assign({}, item);
+                        // Apply each lens operation in the map to transform the item
+                        for (const innerLensOp of mapLens.lens) {
+                            if (innerLensOp.op === 'optionalRename' || innerLensOp.op === 'rename') {
+                                if (transformedItem.hasOwnProperty(innerLensOp.source)) {
+                                    console.log(`📥 in: renaming ${innerLensOp.source} to ${innerLensOp.destination}`);
+                                    transformedItem[innerLensOp.destination] = transformedItem[innerLensOp.source];
+                                    delete transformedItem[innerLensOp.source];
+                                }
+                            }
+                            else if (innerLensOp.op === 'remove' && innerLensOp.name) {
+                                console.log(`📥 in: removing field ${innerLensOp.name}`);
+                                delete transformedItem[innerLensOp.name];
+                            }
+                            else if (innerLensOp.op === 'add' && innerLensOp.name && innerLensOp.default !== undefined) {
+                                console.log(`📥 in: adding field ${innerLensOp.name} with default ${innerLensOp.default}`);
+                                transformedItem[innerLensOp.name] = innerLensOp.default;
+                            }
+                        }
+                        console.log(`📥 in: transformed element ${index}:`, transformedItem);
+                        return transformedItem;
+                    });
+                    console.log(`📥 in: transformed array:`, transformedArray);
+                    return Object.assign(Object.assign({}, patchOp), { value: transformedArray });
+                }
+                const childPatch = applyLensToPatchOp(lensOp.lens, Object.assign(Object.assign({}, patchOp), { path: childPath }));
+                console.log(`📥 in: childPatch result:`, childPatch);
                 if (childPatch) {
-                    return Object.assign(Object.assign({}, childPatch), { path: `/${lensOp.name}${childPatch.path}` });
+                    const finalPath = `/${lensOp.name}${childPatch.path}`;
+                    console.log(`📥 in: returning with finalPath="${finalPath}"`);
+                    return Object.assign(Object.assign({}, childPatch), { path: finalPath });
                 }
                 else {
+                    console.log(`📥 in: returning null`);
                     return null;
                 }
             }
+            console.log(`📥 in: no match for path ${patchOp.path}`);
             break;
         }
         case 'map': {
+            console.log(`🗺️ map: processing patchOp.path="${patchOp.path}"`);
             const arrayIndexMatch = patchOp.path.match(/\/([0-9]+)\//);
-            if (!arrayIndexMatch)
+            if (!arrayIndexMatch) {
+                console.log(`🗺️ map: no array index match for path ${patchOp.path}`);
+                // Special handling for array addition patches that need field transformation
+                // If this is an array element being added (like /relationships/0), and we have rename operations,
+                // we need to transform the value being added
+                const arrayElementMatch = patchOp.path.match(/^\/(\d+)$/);
+                if (arrayElementMatch && (patchOp.op === 'add' || patchOp.op === 'replace') &&
+                    typeof patchOp.value === 'object' && patchOp.value !== null) {
+                    console.log(`🗺️ map: handling array element patch for array index ${arrayElementMatch[1]}`);
+                    // Apply transformations to the object being added/replaced
+                    let transformedValue = Object.assign({}, patchOp.value);
+                    // Apply each lens operation to transform the object
+                    for (const innerLensOp of lensOp.lens) {
+                        if (innerLensOp.op === 'optionalRename' || innerLensOp.op === 'rename') {
+                            if (transformedValue.hasOwnProperty(innerLensOp.source)) {
+                                console.log(`🗺️ map: renaming ${innerLensOp.source} to ${innerLensOp.destination}`);
+                                transformedValue[innerLensOp.destination] = transformedValue[innerLensOp.source];
+                                delete transformedValue[innerLensOp.source];
+                            }
+                        }
+                        else if (innerLensOp.op === 'remove' && innerLensOp.name) {
+                            console.log(`🗺️ map: removing field ${innerLensOp.name}`);
+                            delete transformedValue[innerLensOp.name];
+                        }
+                        else if (innerLensOp.op === 'add' && innerLensOp.name && innerLensOp.default !== undefined) {
+                            console.log(`🗺️ map: adding field ${innerLensOp.name} with default ${innerLensOp.default}`);
+                            transformedValue[innerLensOp.name] = innerLensOp.default;
+                        }
+                    }
+                    console.log(`🗺️ map: transformed array element:`, transformedValue);
+                    return Object.assign(Object.assign({}, patchOp), { value: transformedValue });
+                }
                 break;
-            const arrayIndex = arrayIndexMatch[1];
-            const itemPatch = applyLensToPatchOp(lensOp.lens, Object.assign(Object.assign({}, patchOp), { path: patchOp.path.replace(/\/[0-9]+\//, '/') }));
-            if (itemPatch) {
-                return Object.assign(Object.assign({}, itemPatch), { path: `/${arrayIndex}${itemPatch.path}` });
             }
+            const arrayIndex = arrayIndexMatch[1];
+            const modifiedPath = patchOp.path.replace(/\/[0-9]+\//, '/');
+            console.log(`🗺️ map: arrayIndex=${arrayIndex}, modifiedPath="${modifiedPath}"`);
+            const itemPatch = applyLensToPatchOp(lensOp.lens, Object.assign(Object.assign({}, patchOp), { path: modifiedPath }));
+            console.log(`🗺️ map: itemPatch result:`, itemPatch);
+            if (itemPatch) {
+                const finalPath = `/${arrayIndex}${itemPatch.path}`;
+                console.log(`🗺️ map: returning with finalPath="${finalPath}"`);
+                return Object.assign(Object.assign({}, itemPatch), { path: finalPath });
+            }
+            console.log(`🗺️ map: returning null`);
             return null;
         }
         case 'convert': {
@@ -198,9 +294,12 @@ function runLensOp(lensOp, patchOp) {
         }
         case 'optionalRename': {
             // Handle the same way as regular rename, including nested paths
+            console.log(`🔍 optionalRename: patchOp.path="${patchOp.path}", lensOp.source="${lensOp.source}", lensOp.destination="${lensOp.destination}"`);
+            console.log(`🔍 optionalRename: path parts="${patchOp.path.split('/')}", first part="${patchOp.path.split('/')[1]}"`);
             if ((patchOp.op === 'replace' || patchOp.op === 'add') &&
                 patchOp.path.split('/')[1] === lensOp.source) {
                 const path = patchOp.path.replace(lensOp.source, lensOp.destination);
+                console.log(`✅ optionalRename match! Renaming ${lensOp.source} to ${lensOp.destination}, new path: ${path}`);
                 return Object.assign(Object.assign({}, patchOp), { path });
             }
             break;
