@@ -125,21 +125,33 @@ export async function applyLosslessLensToDoc(
   // Apply the lens transformation
   console.log('applyLosslessLensToDoc - inputDoc:', JSON.stringify(inputDoc, null, 2))
   console.log('applyLosslessLensToDoc - options:', JSON.stringify(options, null, 2))
+  
   // Extract inputSchema from options if provided
   const inputSchema = options.inputSchema
   console.log('applyLosslessLensToDoc - inputSchema:', inputSchema ? 'provided' : 'not provided')
-  const result = applyLensToDoc(lensSource, inputDoc, inputSchema)
-
-  // Add @reverse links if requested
-  if (options.addReverseLinks !== false && sourceUrl) {
-    return addReverseLinks(result, {
-      sourceId: sourceUrl,
-      predicate: options.predicate,
-      addProfileSource: options.addProfileSource,
-    })
+  
+  // Debug lens source
+  console.log('applyLosslessLensToDoc - lensSource:', JSON.stringify(lensSource, null, 2))
+  
+  try {
+    console.log('Calling applyLensToDoc...')
+    let result = applyLensToDoc(lensSource, inputDoc, inputSchema)
+    console.log('applyLensToDoc result:', JSON.stringify(result, null, 2))
+    
+    // Add @reverse links if requested
+    if (options.addReverseLinks !== false && sourceUrl) {
+      result = addReverseLinks(result, {
+        sourceId: sourceUrl,
+        predicate: options.predicate,
+        addProfileSource: options.addProfileSource,
+      })
+    }
+    
+    return result
+  } catch (error) {
+    console.error('Error in applyLensToDoc:', error)
+    throw error
   }
-
-  return result
 }
 
 /**
