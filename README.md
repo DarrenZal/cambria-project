@@ -70,38 +70,38 @@ const newDoc = applyLensToDoc(lens, doc, program.schema, targetDoc)
 console.log(JSON.stringify(newDoc, null, 4))
 ```
 
-## Lossless Conversion
+## Enhanced Transformation Features
 
-Cambria now supports lossless round-trip conversion using JSON-LD `@reverse` links. This feature allows you to track the source of transformed documents and fetch the original document when converting back, ensuring no data is lost in the transformation process.
+Cambria now includes enhanced transformation capabilities with robust error handling and source tracking:
+
+- **optionalRename operation**: Safely rename fields without failing when source doesn't exist
+- **Source tracking**: Maintain `source_url` fields for transformation traceability  
+- **Pure declarative lenses**: All transformations use Cambria operations without custom JavaScript
 
 ```js
-import {
-  loadYamlLens,
-  applyLosslessLensToDoc,
-  addReverseLinks,
-  createDocumentFetcher,
-} from 'cambria'
+import { loadYamlLens, applyLensToDoc } from 'cambria'
 
-// Load the lens
+// Load lens with enhanced operations
+const lensYaml = `
+schemaName: Person
+lens:
+  - optionalRename:
+      source: "@id"
+      destination: "source_url"
+  - optionalRename:
+      source: "currentTitle" 
+      destination: "current_title"
+  - remove:
+      property: "@type"
+`
+
 const lens = loadYamlLens(lensYaml)
 
-// Create a document fetcher
-const fetchDocument = createDocumentFetcher()
+// Transform document with enhanced error handling
+const transformedDoc = applyLensToDoc(lens, sourceDoc)
 
-// Convert source document to target format with @reverse links
-const convertedDoc = await applyLosslessLensToDoc(lens, sourceDoc)
-
-// Add @reverse links to track the source
-const docWithReverseLinks = addReverseLinks(convertedDoc, {
-  targetId: 'https://example.com/profiles/john',
-  sourceId: 'https://example.com/source/john.json',
-})
-
-// Convert back to the original format using the @reverse link
-const reverseLens = lens.slice().reverse()
-const roundTripDoc = await applyLosslessLensToDoc(reverseLens, docWithReverseLinks, {
-  fetchDocument,
-})
+// Result includes source_url for traceability
+console.log(transformedDoc.source_url) // Original document URL
 ```
 
 For more details, see the [lossless conversion documentation](docs/lossless-conversion.md).

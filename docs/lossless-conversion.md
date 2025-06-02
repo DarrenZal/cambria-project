@@ -1,6 +1,6 @@
 # Lossless Conversion with Cambria
 
-Cambria now supports lossless round-trip conversion using JSON-LD `@reverse` links. This feature allows you to track the source of transformed documents and fetch the original document when converting back, ensuring no data is lost in the transformation process.
+Cambria supports lossless round-trip conversion using `source_url` fields. This feature allows you to track the source of transformed documents and enables bidirectional transformation chains, ensuring no data is lost in the transformation process.
 
 ## Overview
 
@@ -8,157 +8,135 @@ When converting between different schema formats, some information may be lost d
 
 The lossless conversion approach solves this problem by:
 
-1. Adding JSON-LD `@reverse` links to the transformed document to track its source
-2. When converting back, fetching the original document using the `@reverse` link
-3. Providing a fallback mechanism when the original document can't be fetched
+1. Adding `source_url` fields to the transformed document to track its source
+2. Using pure Cambria lens operations for all transformations 
+3. Enabling schema transformation chains with bidirectional conversion
 
 ## Key Features
 
-- **JSON-LD Compatible**: Uses standard JSON-LD `@reverse` links to track the source of transformed documents
-- **Backward Compatible**: Maintains a `profile_source` field for backward compatibility with existing systems
-- **Robust Fallback**: Falls back to lens transformation when the original document can't be fetched
-- **Flexible Configuration**: Configurable options for adding `@reverse` links and fetching documents
+- **Pure Cambria Operations**: Uses declarative lens operations for all transformations without custom JavaScript
+- **Source Tracking**: Maintains `source_url` fields to track transformation origins
+- **Bidirectional**: Supports forward and reverse transformation chains
+- **Enhanced Operations**: Includes new `optionalRename` operation for robust field transformations
 
 ## API Reference
 
-### `addReverseLinks(doc, options)`
+### `applyLensToDoc(lensSource, inputDoc, inputSchema, targetDoc)`
 
-Adds `@reverse` links to a document to track its source.
-
-```typescript
-import { addReverseLinks } from 'cambria'
-
-const docWithReverseLinks = addReverseLinks(convertedDoc, {
-  targetId: 'https://example.com/profiles/john',
-  sourceId: 'https://example.com/source/john.json',
-})
-```
-
-#### Options
-
-- `targetId` (optional): The ID to use for the transformed document
-- `sourceId` (required): The ID of the source document
-- `predicate` (optional): The relationship predicate to use (default: 'schema:isBasedOn')
-- `addProfileSource` (optional): Whether to add a profile_source field for backward compatibility (default: true)
-
-### `extractSourceUrl(doc, predicate)`
-
-Extracts the source document URL from a document with `@reverse` links.
+Applies a lens to a document using pure Cambria operations.
 
 ```typescript
-import { extractSourceUrl } from 'cambria'
+import { loadYamlLens, applyLensToDoc } from 'cambria'
 
-const sourceUrl = extractSourceUrl(docWithReverseLinks)
+// Load the lens from YAML
+const lens = loadYamlLens(lensYaml)
+
+// Apply the lens to transform the document
+const result = applyLensToDoc(lens, inputDoc, inputSchema, targetDoc)
 ```
 
 #### Parameters
 
-- `doc` (required): The document to extract the source URL from
-- `predicate` (optional): The relationship predicate to look for (default: 'schema:isBasedOn')
+- `lensSource` (required): The lens specification to apply
+- `inputDoc` (required): The document to transform
+- `inputSchema` (optional): JSON schema for the input document (inferred if not provided)
+- `targetDoc` (optional): Target document to merge results into (defaults to empty object)
 
-### `applyLosslessLensToDoc(lensSource, inputDoc, options)`
+### `optionalRename` Operation
 
-Applies a lens to a document with lossless conversion support.
+New lens operation that safely renames fields without failing when the source doesn't exist.
 
-```typescript
-import { applyLosslessLensToDoc, createDocumentFetcher } from 'cambria'
-
-// Create a document fetcher
-const fetchDocument = createDocumentFetcher()
-
-// Apply the lens with lossless conversion
-const result = await applyLosslessLensToDoc(lens, inputDoc, {
-  fetchDocument,
-})
+```yaml
+# In your lens.yml file
+lens:
+  - optionalRename:
+      source: "@id"
+      destination: "source_url"
+  - optionalRename:
+      source: "currentTitle"
+      destination: "current_title"
 ```
 
-#### Options
+#### Properties
 
-- `fetchDocument` (optional): Function to fetch a document by URL
-- `addReverseLinks` (optional): Whether to add `@reverse` links when converting (default: true)
-- `predicate` (optional): The relationship predicate to use (default: 'schema:isBasedOn')
-- `addProfileSource` (optional): Whether to add a profile_source field for backward compatibility (default: true)
-
-### `createDocumentFetcher(fetchFn)`
-
-Creates a fetch function for use with `applyLosslessLensToDoc`.
-
-```typescript
-import { createDocumentFetcher } from 'cambria'
-
-// Create a document fetcher using the global fetch function
-const fetchDocument = createDocumentFetcher()
-
-// Create a document fetcher using a custom fetch function
-const fetchDocument = createDocumentFetcher(customFetch)
-```
-
-#### Parameters
-
-- `fetchFn` (optional): The fetch function to use (defaults to global fetch)
+- `source` (required): The field name to rename from
+- `destination` (required): The field name to rename to
 
 ## Example Usage
 
-### Basic Example
+### Basic Transformation
 
 ```typescript
-import {
-  loadYamlLens,
-  applyLosslessLensToDoc,
-  addReverseLinks,
-  createDocumentFetcher,
-} from 'cambria'
+import { loadYamlLens, applyLensToDoc } from 'cambria'
 
-// Load the lens
+// Load the lens from YAML
+const lensYaml = `
+schemaName: Person
+lens:
+  - optionalRename:
+      source: "@id"
+      destination: "source_url"
+  - optionalRename:
+      source: "currentTitle"
+      destination: "current_title"
+  - remove:
+      property: "@type"
+`
+
 const lens = loadYamlLens(lensYaml)
 
-// Create a document fetcher
-const fetchDocument = createDocumentFetcher()
+// Transform the document
+const unifiedProfile = {
+  "@id": "https://example.com/profiles/john.jsonld",
+  "@type": "Person",
+  "name": "John Doe",
+  "currentTitle": "Software Engineer"
+}
 
-// Convert source document to target format with @reverse links
-const convertedDoc = await applyLosslessLensToDoc(lens, sourceDoc)
-
-// Add @reverse links to track the source
-const docWithReverseLinks = addReverseLinks(convertedDoc, {
-  targetId: 'https://example.com/profiles/john',
-  sourceId: 'https://example.com/source/john.json',
-})
-
-// Convert back to the original format using the @reverse link
-const reverseLens = lens.slice().reverse()
-const roundTripDoc = await applyLosslessLensToDoc(reverseLens, docWithReverseLinks, {
-  fetchDocument,
-})
+const murmurationsProfile = applyLensToDoc(lens, unifiedProfile)
 ```
 
-### Complete Example
+### Complete Conversion Chain
 
-See the [lossless-conversion.ts](../examples/lossless-conversion.ts) example for a complete demonstration of lossless conversion.
+```javascript
+const { loadYamlLens, applyLensToDoc } = require('cambria')
+const fs = require('fs')
 
-## JSON-LD Structure
+// Load transformation lens
+const lensContent = fs.readFileSync('unified-to-murmurations-person.lens.yml', 'utf8')
+const lens = loadYamlLens(lensContent)
 
-The `@reverse` link is added to the transformed document using the following structure:
+// Convert unified profile to Murmurations format
+const unifiedProfile = JSON.parse(fs.readFileSync('unified-profile.jsonld', 'utf8'))
+const murmurationsProfile = applyLensToDoc(lens, unifiedProfile)
+
+// The result includes source_url for traceability
+console.log(murmurationsProfile.source_url) // Original unified profile URL
+```
+
+## Transformation Structure
+
+The transformed document maintains a `source_url` field to track its origin:
 
 ```json
 {
-  "schema:name": "John Doe",
-  "schema:email": "john@example.com",
-  "@id": "https://example.com/profiles/john",
-  "@reverse": {
-    "schema:isBasedOn": {
-      "@id": "https://example.com/source/john.json"
-    }
-  },
-  "profile_source": "https://example.com/source/john.json"
+  "name": "John Doe",
+  "current_title": "Software Engineer",
+  "source_url": "https://example.com/profiles/john.jsonld",
+  "@context": {
+    "@version": 1.1,
+    "@vocab": "https://schema.org/",
+    "schema": "https://schema.org/",
+    "murm": "https://murmurations.network/schemas/",
+    "regen": "https://darrenzal.github.io/RegenMapping/ontology/"
+  }
 }
 ```
 
-This structure follows JSON-LD conventions for expressing reverse relationships between resources.
-
 ## Benefits
 
-- **Truly Lossless**: No data is lost in the round-trip conversion
-- **Standards-Based**: Uses JSON-LD and semantic web best practices
-- **Backward Compatible**: Maintains compatibility with existing systems
-- **Robust**: Falls back to lens transformation when needed
-- **Flexible**: Configurable options for different use cases
+- **Pure Declarative**: All transformations use Cambria lens operations without custom JavaScript
+- **Robust Error Handling**: `optionalRename` operations don't fail when source fields are missing
+- **Source Traceability**: `source_url` field enables bidirectional transformation chains
+- **Schema Agnostic**: Works with any JSON schema format
+- **Maintainable**: Clear YAML lens definitions that are easy to read and modify
