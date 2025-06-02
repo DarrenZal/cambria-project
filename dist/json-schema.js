@@ -69,17 +69,18 @@ function renameProperty(_schema, from, to) {
         if (!from) {
             throw new Error("Rename property requires a 'source' to rename.");
         }
-        if (!schema.properties[from]) {
-            throw new Error(`Cannot rename property '${from}' because it does not exist among ${Object.keys(schema.properties)}.`);
-        }
         if (!to) {
             throw new Error(`Need a 'destination' to rename ${from} to.`);
         }
         const { properties = {}, required = [] } = schema; // extract properties with default of empty
-        const _a = properties, _b = from, propDetails = _a[_b], rest = __rest(_a, [typeof _b === "symbol" ? _b : _b + ""]); // pull out the old value
-        if (propDetails === undefined) {
-            throw new Error(`Rename error: missing expected property ${from}`);
+        // If the source property doesn't exist, create a generic one for the rename
+        // This allows for flexible schema transformation where source fields may not be pre-defined
+        let propDetails = properties[from];
+        if (!propDetails) {
+            console.log(`🔧 renameProperty: source property '${from}' not found, creating generic property definition`);
+            propDetails = { type: ['string', 'null'] };
         }
+        const _a = properties, _b = from, _ = _a[_b], rest = __rest(_a, [typeof _b === "symbol" ? _b : _b + ""]); // pull out the old value
         return Object.assign(Object.assign({}, schema), { properties: Object.assign({ [to]: propDetails }, rest), required: [...required.filter((r) => r !== from), to] }); // assign it to the new one
     });
 }
@@ -180,7 +181,17 @@ function mapSchema(schema, lens) {
     if (!schema.items) {
         throw new Error(`Map requires a schema with items to map over, ${deepInspect(schema)}`);
     }
-    return Object.assign(Object.assign({}, schema), { items: updateSchema(validateSchemaItems(schema.items), lens) });
+    let itemsSchema = validateSchemaItems(schema.items);
+    // Ensure the items schema has a properties object for rename operations
+    if (typeof itemsSchema === 'object' && itemsSchema.type && !itemsSchema.properties) {
+        // Check if any lens operations require properties (like rename)
+        const needsProperties = lens.some(op => op.op === 'rename' || op.op === 'add' || op.op === 'remove' ||
+            (op.op === 'in' && op.lens && op.lens.some(subOp => subOp.op === 'rename' || subOp.op === 'add' || subOp.op === 'remove')));
+        if (needsProperties) {
+            itemsSchema = Object.assign(Object.assign({}, itemsSchema), { properties: itemsSchema.properties || {}, additionalProperties: true });
+        }
+    }
+    return Object.assign(Object.assign({}, schema), { items: updateSchema(itemsSchema, lens) });
 }
 function filterScalarOrArray(v, cb) {
     if (!Array.isArray(v)) {
