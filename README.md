@@ -20,6 +20,7 @@ Lenses are bidirectional. Once you've converted a document from schema A to sche
 - Manage database migrations for JSON data
 - Transform a JSON document into a different shape on the command line
 - Combine with [cambria-automerge](https://github.com/inkandswitch/cambria-automerge) to collaborate on documents across multiple versions of [local-first software](https://www.inkandswitch.com/local-first.html)
+- Perform lossless round-trip conversion between different schema formats using JSON-LD @reverse links
 
 ## CLI Usage
 
@@ -68,6 +69,42 @@ if (program.reverse) {
 const newDoc = applyLensToDoc(lens, doc, program.schema, targetDoc)
 console.log(JSON.stringify(newDoc, null, 4))
 ```
+
+## Lossless Conversion
+
+Cambria now supports lossless round-trip conversion using JSON-LD `@reverse` links. This feature allows you to track the source of transformed documents and fetch the original document when converting back, ensuring no data is lost in the transformation process.
+
+```js
+import {
+  loadYamlLens,
+  applyLosslessLensToDoc,
+  addReverseLinks,
+  createDocumentFetcher,
+} from 'cambria'
+
+// Load the lens
+const lens = loadYamlLens(lensYaml)
+
+// Create a document fetcher
+const fetchDocument = createDocumentFetcher()
+
+// Convert source document to target format with @reverse links
+const convertedDoc = await applyLosslessLensToDoc(lens, sourceDoc)
+
+// Add @reverse links to track the source
+const docWithReverseLinks = addReverseLinks(convertedDoc, {
+  targetId: 'https://example.com/profiles/john',
+  sourceId: 'https://example.com/source/john.json',
+})
+
+// Convert back to the original format using the @reverse link
+const reverseLens = lens.slice().reverse()
+const roundTripDoc = await applyLosslessLensToDoc(reverseLens, docWithReverseLinks, {
+  fetchDocument,
+})
+```
+
+For more details, see the [lossless conversion documentation](docs/lossless-conversion.md).
 
 ## Install
 
