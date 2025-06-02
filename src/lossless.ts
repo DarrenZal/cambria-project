@@ -34,6 +34,8 @@ export interface LosslessConversionOptions {
   predicate?: string
   /** Whether to add a profile_source field for backward compatibility (default: true) */
   addProfileSource?: boolean
+  /** JSON schema for the input document */
+  inputSchema?: any
 }
 
 /**
@@ -121,7 +123,12 @@ export async function applyLosslessLensToDoc(
   }
 
   // Apply the lens transformation
-  const result = applyLensToDoc(lensSource, inputDoc)
+  console.log('applyLosslessLensToDoc - inputDoc:', JSON.stringify(inputDoc, null, 2))
+  console.log('applyLosslessLensToDoc - options:', JSON.stringify(options, null, 2))
+  // Extract inputSchema from options if provided
+  const inputSchema = options.inputSchema
+  console.log('applyLosslessLensToDoc - inputSchema:', inputSchema ? 'provided' : 'not provided')
+  const result = applyLensToDoc(lensSource, inputDoc, inputSchema)
 
   // Add @reverse links if requested
   if (options.addReverseLinks !== false && sourceUrl) {
