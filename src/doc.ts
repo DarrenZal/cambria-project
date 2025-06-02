@@ -14,72 +14,61 @@ import { updateSchema } from './json-schema'
  * @param inputDoc a document to convert into a big JSON patch describing its full contents
  */
 export function importDoc(inputDoc: any): [JSONSchema7, Patch] {
-  try {
-    console.log('importDoc - inputDoc:', JSON.stringify(inputDoc, null, 2))
-    
-    // Use a safer configuration for arrays to avoid merging issues
-    const options = {
-      postProcessFnc: (type, schema, obj, defaultFnc) => ({
-        ...defaultFnc(type, schema, obj),
-        type: [type, 'null'],
-      }),
-      objects: {
-        postProcessFnc: (schema, obj, defaultFnc) => ({
-          ...defaultFnc(schema, obj),
-          required: Object.getOwnPropertyNames(obj),
-        }),
-      },
-      arrays: {
-        // Use 'first' mode instead of 'all' to avoid merging array items
-        mode: 'first'
-      }
-    }
-
-    console.log('importDoc - options:', JSON.stringify(options, null, 2))
-    
-    const schema = toJSONSchema(inputDoc, options) as JSONSchema7
-    console.log('importDoc - generated schema:', JSON.stringify(schema, null, 2))
-    
-    const patch = compare({}, inputDoc)
-    console.log('importDoc - generated patch:', JSON.stringify(patch, null, 2))
-
-    return [schema, patch]
-  } catch (error) {
-    console.error('Error in importDoc:', error)
-    
-    // Create a simple schema as fallback
-    const fallbackSchema: JSONSchema7 = {
-      type: 'object',
-      properties: {}
-    }
-    
-    // Add basic property types based on the input document
-    if (inputDoc && typeof inputDoc === 'object' && !Array.isArray(inputDoc)) {
-      Object.keys(inputDoc).forEach(key => {
-        const value = inputDoc[key]
-        let type: any = 'string' // default type
-        
-        if (typeof value === 'number') {
-          type = 'number'
-        } else if (typeof value === 'boolean') {
-          type = 'boolean'
-        } else if (Array.isArray(value)) {
-          type = 'array'
-        } else if (value === null) {
-          type = 'null'
-        } else if (typeof value === 'object') {
-          type = 'object'
+  // Always use our robust fallback schema generation instead of to-json-schema
+  // to avoid array handling issues
+  
+  // Create a robust schema using our custom logic
+  const schema: JSONSchema7 = {
+    type: 'object',
+    properties: {}
+  }
+  
+  // Add basic property types based on the input document
+  if (inputDoc && typeof inputDoc === 'object' && !Array.isArray(inputDoc)) {
+    Object.keys(inputDoc).forEach(key => {
+      const value = inputDoc[key]
+      let type: any = 'string' // default type
+      
+      if (typeof value === 'number') {
+        type = 'number'
+      } else if (typeof value === 'boolean') {
+        type = 'boolean'
+      } else if (Array.isArray(value)) {
+        // Handle arrays with proper item type inference
+        let itemType = 'string' // default
+        if (value.length > 0) {
+          const firstItem = value[0]
+          if (typeof firstItem === 'string') {
+            itemType = 'string'
+          } else if (typeof firstItem === 'number') {
+            itemType = 'number'
+          } else if (typeof firstItem === 'boolean') {
+            itemType = 'boolean'
+          } else if (Array.isArray(firstItem)) {
+            itemType = 'array'
+          } else if (firstItem && typeof firstItem === 'object') {
+            itemType = 'object'
+          }
         }
         
-        fallbackSchema.properties![key] = { type: [type, 'null'] }
-      })
-    }
-    
-    const patch = compare({}, inputDoc)
-    console.log('importDoc - using fallback schema:', JSON.stringify(fallbackSchema, null, 2))
-    
-    return [fallbackSchema, patch]
+        schema.properties![key] = { 
+          type: ['array', 'null'],
+          items: { type: [itemType as any, 'null'] }
+        }
+        return // Skip the default assignment below
+      } else if (value === null) {
+        type = 'null'
+      } else if (typeof value === 'object') {
+        type = 'object'
+      }
+      
+      schema.properties![key] = { type: [type, 'null'] }
+    })
   }
+  
+  const patch = compare({}, inputDoc)
+  
+  return [schema, patch]
 }
 
 /**
@@ -116,5 +105,8 @@ export function applyLensToDoc(
   // (start with either a specified baseDoc, or just empty doc)
   // convert the patch through the lens
   const outputPatch = applyLensToPatch(lensSource, patchForOriginalDoc, inputSchema)
-  return applyPatch(base, outputPatch).newDocument
+  const result = applyPatch(base, outputPatch).newDocument
+  
+  return result
 }
+

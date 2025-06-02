@@ -19,6 +19,13 @@ function reverseLensOp(lensOp: LensOp): LensOp {
         source: lensOp.destination,
         destination: lensOp.source,
       }
+    
+    case 'optionalRename':
+      return {
+        ...lensOp,
+        source: lensOp.destination,
+        destination: lensOp.source,
+      }
 
     case 'add': {
       return {

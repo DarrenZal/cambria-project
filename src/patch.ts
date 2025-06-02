@@ -208,6 +208,19 @@ function runLensOp(lensOp: LensOp, patchOp: MaybePatchOp): MaybePatchOp {
       return { ...patchOp, value: lensOp.mapping[0][stringifiedValue] }
     }
 
+    case 'optionalRename': {
+      // Handle the same way as regular rename, including nested paths
+      if (
+        (patchOp.op === 'replace' || patchOp.op === 'add') &&
+        patchOp.path.split('/')[1] === lensOp.source
+      ) {
+        const path = patchOp.path.replace(lensOp.source, lensOp.destination)
+        return { ...patchOp, path }
+      }
+      
+      break
+    }
+
     default:
       assertNever(lensOp) // exhaustiveness check
   }

@@ -486,6 +486,13 @@ function applyLensOperation(schema: JSONSchema7, op: LensOp) {
       return plungeProperty(schema, op.host, op.name)
     case 'convert':
       return convertValue(schema, op)
+    case 'optionalRename':
+      // For schema transformation, optionalRename should only rename if the property exists
+      // If the property doesn't exist, just return the schema unchanged
+      if (!schema.properties || !schema.properties[op.source]) {
+        return schema
+      }
+      return renameProperty(schema, op.source, op.destination)
 
     default:
       assertNever(op) // exhaustiveness check

@@ -70,6 +70,13 @@ export interface ConvertValue {
   destinationType?: JSONSchema7TypeName
 }
 
+// Optional rename that doesn't fail if source doesn't exist
+export interface OptionalRename {
+  op: 'optionalRename'
+  source: string
+  destination: string
+}
+
 export type LensOp =
   | AddProperty
   | RemoveProperty
@@ -81,5 +88,6 @@ export type LensOp =
   | LensIn
   | LensMap
   | ConvertValue
+  | OptionalRename
 
 export type LensSource = LensOp[]

@@ -72,9 +72,9 @@ export function addDefaultValues(patch: Patch, schema: JSONSchema7): Patch {
           // Should we fill in "default defaults" like empty string?
           // I think better to let the json schema explicitly define defaults
           let defaultValue
-          if (propSchema.type === 'object') {
+          if (propSchema.type === 'object' || (Array.isArray(propSchema.type) && propSchema.type.includes('object'))) {
             defaultValue = {}
-          } else if (propSchema.type === 'array') {
+          } else if (propSchema.type === 'array' || (Array.isArray(propSchema.type) && propSchema.type.includes('array'))) {
             defaultValue = []
           } else if ('default' in propSchema) {
             defaultValue = propSchema.default
@@ -110,8 +110,12 @@ function getPropertiesForPath(
     }
     if (types.includes('array')) {
       // throw away the array index, just return the schema for array items
-      if (!schema.items || typeof schema.items !== 'object')
-        throw new Error('Expected array items to have types')
+      if (!schema.items || typeof schema.items !== 'object') {
+        // If array items are not properly defined, provide a fallback
+        return {
+          type: ['string', 'null']
+        } as JSONSchema7
+      }
 
       // todo: revisit this "as", was a huge pain to get this past TS
       return schema.items as JSONSchema7
